@@ -1,0 +1,30 @@
+[package]
+name = "craftstudio"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "PhotoCraft + FilmCraft in one window"
+
+[dependencies]
+photocraft-ui-egui = { path = "../photocraft/crates/ui-egui" }
+photocraft-engine = { path = "../photocraft/crates/engine" }
+photocraft-doc = { path = "../photocraft/crates/doc" }
+photocraft-io = { path = "../photocraft/crates/io" }
+photocraft-format = { path = "../photocraft/crates/format" }
+photocraft-codecs = { path = "../photocraft/crates/codecs" }
+photocraft-raster = { path = "../photocraft/crates/raster" }
+filmcraft-ui-egui = { path = "../filmcraft/crates/ui-egui" }
+filmcraft-engine = { path = "../filmcraft/crates/engine" }
+eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
+egui = "0.36"
+serde_json = "1"
+log = "0.4"
+rfd = "0.17"
+
+# Same as both upstream workspaces: optimized dependencies keep decoding and painting usable in dev builds.
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
