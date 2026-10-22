@@ -15,11 +15,35 @@ photocraft-codecs = { path = "../photocraft/crates/codecs" }
 photocraft-raster = { path = "../photocraft/crates/raster" }
 filmcraft-ui-egui = { path = "../filmcraft/crates/ui-egui" }
 filmcraft-engine = { path = "../filmcraft/crates/engine" }
+lightcraft-ui-egui = { path = "../lightcraft/crates/ui-egui" }
+lightcraft-codecs = { path = "../lightcraft/crates/codecs" }
+lightcraft-raster = { path = "../lightcraft/crates/raster" }
+lightcraft-engine = { path = "../lightcraft/crates/engine", features = ["sam"] }
+vectorcraft-ui-egui = { path = "../vectorcraft/crates/ui-egui" }
+vectorcraft-engine = { path = "../vectorcraft/crates/engine", features = ["bundled-fonts"] }
+# VectorCraft's system clipboard (apps/vectorcraft/src/clipboard.rs, compiled as-is).
+arboard = { version = "3.6", default-features = false, features = ["image-data", "wayland-data-control"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "tiff", "bmp", "tga"] }
+vectorcraft-text = { path = "../vectorcraft/crates/text" }
+craft-print = { git = "https://github.com/storytold/craft-libs", rev = "d991bf6792f8ade99c51358bf3c1d902c8cd96b5" }
+webbrowser = "1"
+winit = { version = "0.30", default-features = false }
 eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
 egui = "0.36"
 serde_json = "1"
 log = "0.4"
 rfd = "0.17"
+
+# LightCraft's colord and VectorCraft's portal save dialog; pinned as upstream.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "=5.19.0"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
+wayland-backend = { version = "0.3", features = ["client_system"] }
+
+# printing.rs (VectorCraft's, compiled as-is) names VectorCraft's `windows7` feature.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("windows7"))'] }
 
 # Same as both upstream workspaces: optimized dependencies keep decoding and painting usable in dev builds.
 [profile.dev]
@@ -28,3 +52,10 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 opt-level = 2
+
+# VectorCraft's PDF stack is patched in its workspace; patches only apply from the root workspace.
+[patch.crates-io]
+hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
+hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
+hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
+krilla = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
