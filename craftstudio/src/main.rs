@@ -191,6 +191,9 @@ impl Studio {
     }
 
     fn switch(&mut self, ctx: &egui::Context, mode: Mode) {
+        // A hidden editor's logic doesn't run: playback there would go on with nobody watching.
+        self.video.playback.playing = false;
+        self.motion.playback.playing = false;
         self.mode = mode;
         self.quit_anyway = false;
         if mode == Mode::Home || mode == self.styled_for {
@@ -322,10 +325,12 @@ impl Studio {
         };
         if !videos.is_empty() {
             self.switch(ctx, Mode::Video);
-            self.pending = Some((Mode::Video, "file.import", json!({"paths": s(&videos)})));
+            // Now, not as a Home action: one waiting for Video would be lost to the next one.
+            if let Err(e) = filmcraft_ui_egui::menus::invoke(&mut self.video, ctx, "file.import", json!({"paths": s(&videos)})) {
+                log::error!("couldn't import the videos: {e}");
+            }
         }
         if !photos.is_empty() {
-            // Photos win the first screen; a video import (if any) waits until Video is opened.
             self.switch(ctx, Mode::Photo);
             for p in s(&photos) {
                 if let Err(e) = photocraft_ui_egui::menus::invoke(
