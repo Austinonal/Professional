@@ -9,6 +9,7 @@ mod clipboard;
 #[allow(dead_code)]
 #[path = "../../vectorcraft/apps/vectorcraft/src/cursor_theme.rs"]
 mod cursor_theme;
+#[cfg(target_os = "linux")]
 #[path = "../../vectorcraft/apps/vectorcraft/src/portal_save.rs"]
 mod portal_save;
 #[path = "../../vectorcraft/apps/vectorcraft/src/prefs_dir.rs"]

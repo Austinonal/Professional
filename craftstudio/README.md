@@ -31,8 +31,11 @@ Expects the upstream repos next to this folder:
     git clone https://github.com/storytold/filmcraft ../filmcraft
     cargo build --release      # target/release/craftstudio, about 350 MB, one file
 
-Linux only for now (the macOS and Windows hooks aren't wired in); FilmCraft's sound needs ALSA
-(`libasound2-dev` to build). Format with
+Linux and Windows (10/11, 64-bit); macOS isn't wired in. FilmCraft's sound needs ALSA
+(`libasound2-dev`) to build on Linux. The Windows build is one self-contained `.exe`, cross-built
+from Linux with MinGW (`rustup target add x86_64-pc-windows-gnu`, package `mingw-w64`):
+
+    cargo build --release --target x86_64-pc-windows-gnu Format with
 `rustfmt` on `src/*.rs`, not `cargo fmt`, which would follow the `#[path]` modules into the
 upstream repos.
 

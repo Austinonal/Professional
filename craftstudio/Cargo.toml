@@ -101,3 +101,10 @@ lto = "thin"
 [dev-dependencies]
 # FilmCraft's own tests of file_filters.rs.
 glob = "0.3"
+
+# The upstream modules' Windows code (PhotoCraft's beep and clipboard, VectorCraft's clipboard,
+# FigCraft's language, motion setting and gamepad); versions and features as upstream.
+[target.'cfg(windows)'.dependencies]
+winsafe = { version = "=0.0.29", default-features = false, features = ["user"] }
+clipboard-win = "5.4"
+windows = { version = "0.62", default-features = false, features = ["UI_ViewManagement", "System_UserProfile", "Foundation_Collections", "Gaming_Input"] }

@@ -3,7 +3,9 @@
 //! VectorCraft app wires up works here too. Re-copy it when upstream changes.
 #![allow(dead_code, unused_imports)]
 
-use super::{clipboard, cursor_theme, portal_save, printing};
+use super::{clipboard, cursor_theme, printing};
+#[cfg(target_os = "linux")]
+use super::portal_save;
 use vectorcraft_engine::cmd::fileio;
 use vectorcraft_ui_egui::picks::PickRequest;
 use vectorcraft_ui_egui::{ClipboardProbeFactory, FilePick, Services};

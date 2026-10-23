@@ -1,3 +1,5 @@
+// Release builds on Windows open no console window beside the app.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! CraftStudio: LightCraft (photo library), PhotoCraft (images), VectorCraft (illustration) and
 //! FilmCraft (video) in one window.
 //!
@@ -24,17 +26,20 @@ mod pc {
     #[allow(dead_code)]
     pub mod crash_guard;
     pub mod file_dialog_probe;
+    #[cfg(any(target_os = "linux", test))]
     #[allow(dead_code)]
     pub mod linux_libs;
     pub mod photoshop_settings;
+    #[cfg(target_os = "linux")]
     pub mod portal_save;
     #[allow(dead_code)]
     pub mod services;
 }
-use pc::{
-    app_dirs, appearance, crash_guard, file_dialog_probe, linux_libs, photoshop_settings,
-    portal_save, services,
-};
+use pc::{app_dirs, appearance, crash_guard, file_dialog_probe, photoshop_settings, services};
+#[cfg(any(target_os = "linux", test))]
+use pc::linux_libs;
+#[cfg(target_os = "linux")]
+use pc::portal_save;
 
 // FigCraft's platform modules, compiled as they are and declared as PhotoCraft's are (above);
 // its services name `crate::gamepad` and `crate::recovery`.
@@ -696,6 +701,7 @@ fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("CraftStudio")
+            .with_icon(eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon-256.png")).unwrap_or_default())
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([900.0, 600.0]),
         // EffectCraft's: the adapter's own limits (textures up to 16384 px), which its compositor
