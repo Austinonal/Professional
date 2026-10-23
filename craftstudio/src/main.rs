@@ -7,6 +7,8 @@
 //! each other (LightCraft's Edit in PhotoCraft, VectorCraft's Edit Original), it lands in the
 //! Photo tab of the same window.
 
+mod effect;
+mod fig;
 mod film;
 mod light;
 mod vector;
@@ -34,6 +36,20 @@ use pc::{
     portal_save, services,
 };
 
+// FigCraft's platform modules, compiled as they are and declared as PhotoCraft's are (above);
+// its services name `crate::gamepad` and `crate::recovery`.
+#[path = "../../figcraft/apps/figcraft/src"]
+mod fg {
+    pub mod gamepad;
+    // Some helpers serve only FigCraft's own test files, which live in its main.rs.
+    #[cfg_attr(test, allow(dead_code))]
+    pub mod recovery;
+    // Partly used: its window icon serves FigCraft's own launcher.
+    #[allow(dead_code)]
+    pub mod services;
+}
+use fg::{gamepad, recovery};
+
 // What PhotoCraft's main.rs gives those modules' tests.
 #[cfg(test)]
 mod gpu_startup {
@@ -55,6 +71,7 @@ use eframe::egui;
 use filmcraft_ui_egui::FilmcraftApp;
 use photocraft_ui_egui::PhotocraftApp;
 use serde_json::{Value, json};
+use effectcraft_ui_egui::EffectcraftApp;
 use vectorcraft_ui_egui::VectorcraftApp;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -63,7 +80,26 @@ enum Mode {
     Library,
     Photo,
     Vector,
+    Design,
+    Motion,
     Video,
+}
+
+impl Mode {
+    /// The editors, in tab order.
+    const EDITORS: [Mode; 6] = [Mode::Library, Mode::Photo, Mode::Vector, Mode::Design, Mode::Motion, Mode::Video];
+
+    fn name(self) -> &'static str {
+        match self {
+            Mode::Home => "Home",
+            Mode::Library => "Library",
+            Mode::Photo => "Photo",
+            Mode::Vector => "Vector",
+            Mode::Design => "Design",
+            Mode::Motion => "Motion",
+            Mode::Video => "Video",
+        }
+    }
 }
 
 struct Studio {
@@ -71,6 +107,8 @@ struct Studio {
     light: light::Light,
     photo: PhotocraftApp,
     vector: VectorcraftApp,
+    fig: fig::Fig,
+    motion: EffectcraftApp,
     video: FilmcraftApp,
     /// The editor whose look (fonts, colours) the context has now; switching re-installs it.
     styled_for: Mode,
@@ -92,6 +130,10 @@ const ACCENT: egui::Color32 = egui::Color32::from_rgb(0x4a, 0x8c, 0xff);
 const VIDEO_ACCENT: egui::Color32 = egui::Color32::from_rgb(0x8b, 0x5c, 0xf6);
 const LIBRARY_ACCENT: egui::Color32 = egui::Color32::from_rgb(0x14, 0x9e, 0x82);
 const VECTOR_ACCENT: egui::Color32 = egui::Color32::from_rgb(0xe0, 0x7b, 0x10);
+const DESIGN_ACCENT: egui::Color32 = egui::Color32::from_rgb(0xe0, 0x3e, 0x8a);
+const MOTION_ACCENT: egui::Color32 = egui::Color32::from_rgb(0xd9, 0x45, 0x2b);
+const DESIGN_EXTS: &[&str] = &["figcraft", "fig"];
+const MOTION_EXTS: &[&str] = &["ecproj", "ecprojx"];
 const VECTOR_EXTS: &[&str] = &[
     "vectorcraft",
     "drawcraft",
@@ -125,6 +167,8 @@ impl Studio {
         let (tx, to_photo): (Sender<String>, _) = std::sync::mpsc::channel();
         let light = light::Light::new(cc, tx.clone());
         let vector = vector::new(cc, tx);
+        let fig = fig::Fig::new();
+        let motion = effect::new(cc);
         // The Home screen uses PhotoCraft's look until an editor is opened.
         PhotocraftApp::setup_context(&cc.egui_ctx, photo.ui.theme);
         let launch: Vec<PathBuf> = std::env::args_os().skip(1).map(PathBuf::from).collect();
@@ -133,6 +177,8 @@ impl Studio {
             light,
             photo,
             vector,
+            fig,
+            motion,
             video,
             styled_for: Mode::Photo,
             settling: false,
@@ -168,6 +214,8 @@ impl Studio {
                 vectorcraft_ui_egui::theme::install_fonts(ctx);
                 vectorcraft_ui_egui::theme::apply(ctx, self.vector.ui.brightness);
             }
+            Mode::Design => fig::Fig::restyle(ctx),
+            Mode::Motion => effect::restyle(&self.motion, ctx),
             Mode::Video => filmcraft_ui_egui::theme::install(ctx, &self.video.tokens),
             Mode::Home => {}
         }
@@ -185,6 +233,8 @@ impl Studio {
             }
             Mode::Photo => self.photo.session.documents().iter().any(|d| d.is_dirty()),
             Mode::Vector => self.vector.session.documents().iter().any(|d| d.is_dirty()),
+            Mode::Design => fig::Fig::has_unsaved(),
+            Mode::Motion => effect::has_unsaved(&self.motion),
             Mode::Video => self.video.session.is_dirty(),
         }
     }
@@ -195,13 +245,6 @@ impl Studio {
         if self.unsaved_on_close.is_empty() {
             return;
         }
-        let name = |m: Mode| match m {
-            Mode::Library => "Library",
-            Mode::Photo => "Photo",
-            Mode::Vector => "Vector",
-            Mode::Video => "Video",
-            Mode::Home => "Home",
-        };
         let tabs: Vec<Mode> = self.unsaved_on_close.clone();
         let mut go = None;
         let mut quit = false;
@@ -210,14 +253,14 @@ impl Studio {
             ui.set_width(380.0);
             ui.heading("Unsaved work");
             ui.add_space(6.0);
-            let list = tabs.iter().map(|m| name(*m)).collect::<Vec<_>>().join(", ");
+            let list = tabs.iter().map(|m| m.name()).collect::<Vec<_>>().join(", ");
             ui.label(format!(
                 "These tabs have changes that aren't saved: {list}. Quitting now loses them."
             ));
             ui.add_space(12.0);
             ui.horizontal_wrapped(|ui| {
                 for m in &tabs {
-                    if ui.button(format!("Go to {}", name(*m))).clicked() {
+                    if ui.button(format!("Go to {}", m.name())).clicked() {
                         go = Some(*m);
                     }
                 }
@@ -250,7 +293,19 @@ impl Studio {
         let (drawings, rest): (Vec<_>, Vec<_>) = std::mem::take(&mut self.launch)
             .into_iter()
             .partition(|p| has(p, VECTOR_EXTS));
+        let (designs, rest): (Vec<_>, Vec<_>) = rest.into_iter().partition(|p| has(p, DESIGN_EXTS));
+        let (motions, rest): (Vec<_>, Vec<_>) = rest.into_iter().partition(|p| has(p, MOTION_EXTS));
         let (photos, videos): (Vec<_>, Vec<_>) = rest.into_iter().partition(|p| has(p, PHOTO_EXTS));
+        for p in &designs {
+            self.switch(ctx, Mode::Design);
+            figcraft_ui_egui::windows::with_app(|fig| fig.run("file.open", json!({"path": p.to_string_lossy()})));
+        }
+        for p in &motions {
+            self.switch(ctx, Mode::Motion);
+            if let Err(e) = self.motion.session.execute("file.open", json!({"path": p.to_string_lossy()})) {
+                log::error!("couldn't open {}: {e}", p.display());
+            }
+        }
         for p in &drawings {
             self.switch(ctx, Mode::Vector);
             if let Err(e) = self
@@ -320,6 +375,18 @@ impl Studio {
                             VECTOR_ACCENT,
                         ),
                         (
+                            Mode::Design,
+                            "🎨  Design",
+                            "Design apps and websites: frames, components, prototypes (FigCraft)",
+                            DESIGN_ACCENT,
+                        ),
+                        (
+                            Mode::Motion,
+                            "✨  Motion",
+                            "Animate titles and add visual effects (EffectCraft)",
+                            MOTION_ACCENT,
+                        ),
+                        (
                             Mode::Video,
                             "🎬  Video",
                             "Edit videos: timeline, cuts, sound (FilmCraft)",
@@ -340,7 +407,7 @@ impl Studio {
                             egui::Color32::TRANSPARENT
                         })
                         .corner_radius(6.0)
-                        .min_size(egui::vec2(96.0, 28.0));
+                        .min_size(egui::vec2(88.0, 28.0));
                         if ui.add(button).on_hover_text(tip).clicked() && !on {
                             self.switch(&ctx, mode);
                         }
@@ -348,21 +415,12 @@ impl Studio {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.add_space(8.0);
                         let hint = match self.mode {
-                            Mode::Home => "Pick what you want to make to begin",
-                            Mode::Library => {
-                                "Photo library · Edit in PhotoCraft opens in the Photo tab"
-                            }
-                            Mode::Photo => {
-                                "Photo editor · switch tabs any time, your work stays open"
-                            }
-                            Mode::Vector => {
-                                "Vector drawing · switch tabs any time, your work stays open"
-                            }
-                            Mode::Video => {
-                                "Video editor · switch tabs any time, your work stays open"
-                            }
+                            Mode::Home => "Pick what you want to make",
+                            Mode::Library => "Edit in PhotoCraft opens in the Photo tab",
+                            _ => "Your work stays open when you switch tabs",
                         };
-                        ui.weak(hint);
+                        // Truncated rather than run under the tabs in a narrow window.
+                        ui.add(egui::Label::new(egui::RichText::new(hint).weak()).truncate());
                     });
                 });
             });
@@ -371,6 +429,7 @@ impl Studio {
     fn home(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         egui::CentralPanel::default().show(ui, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
             ui.vertical_centered(|ui| {
                 ui.add_space((ui.available_height() * 0.12).min(80.0));
                 ui.heading(egui::RichText::new("What do you want to make?").size(26.0));
@@ -378,10 +437,10 @@ impl Studio {
                 ui.weak("Every app stays open side by side; the switch at the top always takes you back.");
                 ui.add_space(28.0);
             });
-            let card_w = 340.0_f32.min((ui.available_width() - 60.0) / 2.0).max(220.0);
-            let total = card_w * 2.0 + 24.0;
+            let card_w = 320.0_f32.min((ui.available_width() - 80.0) / 3.0).max(220.0);
+            let total = card_w * 3.0 + 48.0;
             let mut picked = None;
-            let rows: [[(Mode, egui::Color32, &str, &str, &str, &[(&str, &'static str)]); 2]; 2] = [
+            let rows: [[(Mode, egui::Color32, &str, &str, &str, &[(&str, &'static str)]); 3]; 2] = [
                 [
                     (Mode::Library, LIBRARY_ACCENT, "📚", "Library", "Bring in photos from a camera or folder,\nsort, rate and develop raw files.", &[
                         ("Import photos…", "file.addPhotos"),
@@ -392,11 +451,20 @@ impl Studio {
                         ("New image", "file.new"),
                         ("Open an image…", "file.open"),
                     ]),
-                ],
-                [
                     (Mode::Vector, VECTOR_ACCENT, "✏", "Vector", "Draw logos, icons and illustrations\nthat stay sharp at any size (SVG, PDF).", &[
                         ("New drawing", "file.newDialog"),
                         ("Open a drawing…", "file.open"),
+                    ]),
+                ],
+                [
+                    (Mode::Design, DESIGN_ACCENT, "🎨", "Design", "Design screens for apps and websites,\nwith components and clickable prototypes.", &[
+                        ("New design", "file.new"),
+                        ("Open a design…", "file.open"),
+                    ]),
+                    (Mode::Motion, MOTION_ACCENT, "✨", "Motion", "Animate titles and graphics,\nadd visual effects to footage.", &[
+                        ("New animation", "comp.new"),
+                        ("Open a project…", "file.open"),
+                        ("Try the demo project", "file.openDemoProject"),
                     ]),
                     (Mode::Video, VIDEO_ACCENT, "🎬", "Video", "Cut clips on a timeline, add titles\nand sound, export a movie.", &[
                         ("Add video clips…", "file.import"),
@@ -423,6 +491,7 @@ impl Studio {
                 self.switch(&ctx, mode);
                 self.pending = (!id.is_empty()).then(|| (mode, id, json!({})));
             }
+            });
         });
     }
 
@@ -435,6 +504,15 @@ impl Studio {
             Mode::Photo => photocraft_ui_egui::menus::invoke(&mut self.photo, ctx, id, params),
             Mode::Video => filmcraft_ui_egui::menus::invoke(&mut self.video, ctx, id, params),
             Mode::Library => self.light.app.run(id, params),
+            Mode::Design => {
+                figcraft_ui_egui::windows::with_app(|fig| fig.run(id, params));
+                Ok(Value::Null)
+            }
+            Mode::Motion => {
+                // EffectCraft's own start screen would stay over what the action opened.
+                self.motion.ui.start_screen = false;
+                effectcraft_ui_egui::menus::invoke(&mut self.motion, ctx, id, params)
+            }
             Mode::Vector => {
                 vectorcraft_ui_egui::menus::invoke(&mut self.vector, id, params);
                 Ok(Value::Null)
@@ -497,6 +575,8 @@ impl eframe::App for Studio {
             Mode::Library => self.light.app.raw_input_hook(raw_input),
             Mode::Photo => self.photo.raw_input_hook(ctx, raw_input),
             Mode::Vector => self.vector.raw_input_hook(raw_input),
+            Mode::Design => self.fig.raw_input_hook(raw_input),
+            Mode::Motion => eframe::App::raw_input_hook(&mut self.motion, ctx, raw_input),
             Mode::Video => self.video.raw_input_hook(ctx, raw_input),
             Mode::Home => {}
         }
@@ -507,7 +587,7 @@ impl eframe::App for Studio {
             self.open_launch_files(ctx);
         }
         if ctx.input(|i| i.viewport().close_requested()) && !self.quit_anyway {
-            let hidden: Vec<Mode> = [Mode::Library, Mode::Photo, Mode::Vector, Mode::Video]
+            let hidden: Vec<Mode> = Mode::EDITORS
                 .into_iter()
                 .filter(|m| *m != self.mode && self.has_unsaved(*m))
                 .collect();
@@ -532,6 +612,7 @@ impl eframe::App for Studio {
                 }
             }
         }
+        self.fig.logic(ctx, self.mode == Mode::Design);
         match self.mode {
             Mode::Library => {
                 self.light.app.logic(ctx);
@@ -544,8 +625,9 @@ impl eframe::App for Studio {
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 }
             }
+            Mode::Motion => eframe::App::logic(&mut self.motion, ctx, frame),
             Mode::Video => self.video.logic(ctx, frame),
-            Mode::Home => {}
+            Mode::Home | Mode::Design => {}
         }
     }
 
@@ -574,6 +656,8 @@ impl eframe::App for Studio {
                         vector::save_prefs(&self.vector);
                     }
                 }
+                Mode::Design => self.fig.ui(ui, frame),
+                Mode::Motion => eframe::App::ui(&mut self.motion, ui, frame),
                 Mode::Video => self.video.ui(ui, frame),
             }
         });
@@ -583,18 +667,11 @@ impl eframe::App for Studio {
         }
         // Each editor titles the window after itself; the title says which tab is showing.
         let title = match self.mode {
-            Mode::Home => "CraftStudio",
-            Mode::Library => "CraftStudio · Library",
-            Mode::Photo => "CraftStudio · Photo",
-            Mode::Vector => "CraftStudio · Vector",
-            Mode::Video => "CraftStudio · Video",
+            Mode::Home => "CraftStudio".to_string(),
+            m => format!("CraftStudio · {}", m.name()),
         };
-        if ui
-            .ctx()
-            .input(|i| i.viewport().title.as_deref() != Some(title))
-        {
-            ui.ctx()
-                .send_viewport_cmd(egui::ViewportCommand::Title(title.into()));
+        if ui.ctx().input(|i| i.viewport().title.as_deref() != Some(title.as_str())) {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Title(title));
         }
     }
 
@@ -602,18 +679,23 @@ impl eframe::App for Studio {
         self.light.exit();
         self.photo.on_exit();
         vector::save_prefs(&self.vector);
+        self.fig.exit();
+        eframe::App::on_exit(&mut self.motion);
         self.video.on_exit();
     }
 }
 
 fn main() -> eframe::Result {
-    env_logger_lite();
+    effect::start();
     film::start();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("CraftStudio")
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([900.0, 600.0]),
+        // EffectCraft's: the adapter's own limits (textures up to 16384 px), which its compositor
+        // needs; the other editors run within them too.
+        wgpu_options: effect::wgpu_options(None),
         ..Default::default()
     };
     eframe::run_native(
@@ -621,24 +703,6 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| Ok(Box::new(Studio::new(cc)))),
     )
-}
-
-/// Warnings and errors to stderr (no logger dependency for this).
-fn env_logger_lite() {
-    struct Stderr;
-    impl log::Log for Stderr {
-        fn enabled(&self, m: &log::Metadata) -> bool {
-            m.level() <= log::Level::Warn
-        }
-        fn log(&self, r: &log::Record) {
-            if self.enabled(r.metadata()) {
-                eprintln!("[{}] {}", r.level(), r.args());
-            }
-        }
-        fn flush(&self) {}
-    }
-    static LOGGER: Stderr = Stderr;
-    let _ = log::set_logger(&LOGGER).map(|()| log::set_max_level(log::LevelFilter::Warn));
 }
 
 #[cfg(test)]

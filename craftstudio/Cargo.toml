@@ -19,6 +19,15 @@ photocraft-compose = { path = "../photocraft/crates/compose" }
 photocraft-automation = { path = "../photocraft/crates/automation" }
 open = "5"
 filmcraft-ui-egui = { path = "../filmcraft/crates/ui-egui" }
+effectcraft-ui-egui = { path = "../effectcraft/crates/ui-egui" }
+effectcraft-engine = { path = "../effectcraft/crates/engine" }
+effectcraft-host = { path = "../effectcraft/crates/host" }
+figcraft-ui-egui = { path = "../figcraft/crates/ui-egui" }
+figcraft-engine = { path = "../figcraft/crates/engine" }
+figcraft-doc = { path = "../figcraft/crates/doc" }
+figcraft-format = { path = "../figcraft/crates/format" }
+figcraft-text = { path = "../figcraft/crates/text" }
+figcraft-collab-net = { path = "../figcraft/crates/collab-net" }
 filmcraft-engine = { path = "../filmcraft/crates/engine" }
 filmcraft-export = { path = "../filmcraft/crates/export" }
 filmcraft-gpu = { path = "../filmcraft/crates/gpu" }
@@ -42,6 +51,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 vectorcraft-text = { path = "../vectorcraft/crates/text" }
 craft-print = { git = "https://github.com/storytold/craft-libs", rev = "d991bf6792f8ade99c51358bf3c1d902c8cd96b5" }
 webbrowser = "1"
+# EffectCraft's non-blocking file dialogs (apps/effectcraft/src/sheet_dialogs.rs).
+pollster = "0.4"
 winit = { version = "0.30", default-features = false }
 eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
 egui = "0.36"
