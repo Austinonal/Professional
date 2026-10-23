@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CraftStudio</title>
+  <meta name="description" content="Six creative apps in one window: photo library, photo editing, vector drawing, interface design, motion graphics and video.">
+  <meta name="theme-color" content="#1e1f24">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <style>
+    :root { --bg: #f6f6f8; --fg: #1e1f24; --muted: #5d6070; --card: #ffffff; --line: #e2e3e8; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #1e1f24; --fg: #ececf1; --muted: #a3a6b4; --card: #272830; --line: #3a3c46; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 1040px; margin: 0 auto; padding: 48px 16px 64px; }
+    header { display: flex; align-items: center; gap: 16px; }
+    header img { width: 64px; height: 64px; }
+    h1 { margin: 0; font-size: 2.2rem; }
+    .lead { color: var(--muted); font-size: 1.1rem; margin: 8px 0 32px; }
+    .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; margin: 0 0 40px; padding: 0; list-style: none; }
+    .apps li { background: var(--card); border: 1px solid var(--line); border-left: 6px solid var(--c); border-radius: 10px; padding: 14px 16px; }
+    .apps b { display: block; }
+    .apps span { color: var(--muted); font-size: .92rem; }
+    h2 { margin: 40px 0 12px; font-size: 1.4rem; }
+    figure { margin: 0 0 20px; }
+    figure img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); display: block; }
+    figcaption { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+    pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-size: .9rem; }
+    .note { color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icons/icon.svg" alt="">
+    <h1>CraftStudio</h1>
+  </header>
+  <p class="lead">Six creative apps in one window, with a Home screen that says what each is for and a switch at the top that always takes you back. Your work stays open when you switch.</p>
+
+  <ul class="apps">
+    <li style="--c:#149e82"><b>Library</b><span>Import, sort, rate and develop photos and raw files (LightCraft)</span></li>
+    <li style="--c:#4a8cff"><b>Photo</b><span>Retouch pictures with layers; PSD, PNG, JPEG (PhotoCraft)</span></li>
+    <li style="--c:#e07b10"><b>Vector</b><span>Logos and illustrations that stay sharp; SVG, PDF (VectorCraft)</span></li>
+    <li style="--c:#e03e8a"><b>Design</b><span>Screens for apps and websites, components, prototypes (FigCraft)</span></li>
+    <li style="--c:#d9452b"><b>Motion</b><span>Animated titles, graphics and visual effects (EffectCraft)</span></li>
+    <li style="--c:#8b5cf6"><b>Video</b><span>Cut clips on a timeline, add titles and sound (FilmCraft)</span></li>
+  </ul>
+
+  <h2>Screenshots</h2>
+  <figure><img src="craftstudio/shots/1-home.png" alt="CraftStudio's Home screen with six app cards" loading="lazy"><figcaption>Home: pick what you want to make.</figcaption></figure>
+  <figure><img src="craftstudio/shots/6-motion.png" alt="The Motion tab with EffectCraft's demo project" loading="lazy"><figcaption>Motion (EffectCraft) with its demo project.</figcaption></figure>
+  <figure><img src="craftstudio/shots/4-video.png" alt="The Video tab with FilmCraft's demo timeline" loading="lazy"><figcaption>Video (FilmCraft) playing its demo.</figcaption></figure>
+  <figure><img src="craftstudio/shots/12-quit-check.png" alt="The unsaved-work check when quitting" loading="lazy"><figcaption>Quitting with unsaved work in another tab says which, and lets you go there first.</figcaption></figure>
+
+  <h2>Get it</h2>
+  <p class="note">CraftStudio is a desktop program for Linux; it does not run in the browser. Build it next to the six upstream projects:</p>
+  <pre>git clone https://github.com/storytold/lightcraft
+git clone https://github.com/storytold/photocraft
+git clone https://github.com/storytold/vectorcraft
+git clone https://github.com/storytold/figcraft
+git clone https://github.com/storytold/effectcraft
+git clone https://github.com/storytold/filmcraft
+cd craftstudio
+cargo build --release    # target/release/craftstudio</pre>
+  <p class="note">Sound needs ALSA (<code>libasound2-dev</code>) to build. Details are in <a href="craftstudio/README.md">craftstudio/README.md</a>.</p>
+</main>
+</body>
+</html>

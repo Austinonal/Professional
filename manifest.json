@@ -1,0 +1,16 @@
+{
+  "name": "CraftStudio",
+  "short_name": "CraftStudio",
+  "description": "Six creative apps in one window: photo library, photo editing, vector drawing, interface design, motion graphics and video.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1e1f24",
+  "theme_color": "#1e1f24",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

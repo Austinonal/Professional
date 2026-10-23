@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- CraftStudio: six tiles, one per app (original work, MIT OR Apache-2.0) -->
+  <rect width="512" height="512" rx="96" fill="#1e1f24"/>
+  <g transform="translate(76 116)">
+    <rect x="0"   y="0"   width="104" height="128" rx="20" fill="#149e82"/>
+    <rect x="128" y="0"   width="104" height="128" rx="20" fill="#4a8cff"/>
+    <rect x="256" y="0"   width="104" height="128" rx="20" fill="#e07b10"/>
+    <rect x="0"   y="152" width="104" height="128" rx="20" fill="#e03e8a"/>
+    <rect x="128" y="152" width="104" height="128" rx="20" fill="#d9452b"/>
+    <rect x="256" y="152" width="104" height="128" rx="20" fill="#8b5cf6"/>
+  </g>
+</svg>
