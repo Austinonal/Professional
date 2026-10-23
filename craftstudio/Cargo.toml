@@ -13,8 +13,23 @@ photocraft-io = { path = "../photocraft/crates/io" }
 photocraft-format = { path = "../photocraft/crates/format" }
 photocraft-codecs = { path = "../photocraft/crates/codecs" }
 photocraft-raster = { path = "../photocraft/crates/raster" }
+photocraft-color = { path = "../photocraft/crates/color" }
+photocraft-geom = { path = "../photocraft/crates/geom" }
+photocraft-compose = { path = "../photocraft/crates/compose" }
+photocraft-automation = { path = "../photocraft/crates/automation" }
+open = "5"
 filmcraft-ui-egui = { path = "../filmcraft/crates/ui-egui" }
 filmcraft-engine = { path = "../filmcraft/crates/engine" }
+filmcraft-export = { path = "../filmcraft/crates/export" }
+filmcraft-gpu = { path = "../filmcraft/crates/gpu" }
+filmcraft-platform = { path = "../filmcraft/crates/platform" }
+filmcraft-project = { path = "../filmcraft/crates/project" }
+filmcraft-render = { path = "../filmcraft/crates/render" }
+filmcraft-time = { path = "../filmcraft/crates/time" }
+# FilmCraft's sound output and voice-over input (apps/filmcraft/src/audio*.rs, compiled as-is).
+cpal = "0.16"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+sys-locale = "0.3"
 lightcraft-ui-egui = { path = "../lightcraft/crates/ui-egui" }
 lightcraft-codecs = { path = "../lightcraft/crates/codecs" }
 lightcraft-raster = { path = "../lightcraft/crates/raster" }
@@ -37,6 +52,11 @@ rfd = "0.17"
 # LightCraft's colord and VectorCraft's portal save dialog; pinned as upstream.
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "=5.19.0"
+# PhotoCraft's portal save dialog and Wayland clipboard images; pinned as upstream.
+futures-lite = "=2.6.1"
+async-io = "=2.6.0"
+wl-clipboard-rs = { version = "=0.9.4", default-features = false }
+photocraft-cms = { path = "../photocraft/crates/cms" }
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-backend = { version = "0.3", features = ["client_system"] }
@@ -59,3 +79,14 @@ hayro-syntax = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63
 hayro-interpret = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 hayro-jbig2 = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
 krilla = { git = "https://github.com/storytold/craft-libs", rev = "ca50d63b773c99f96e75c77ce5a1d21e7c9cda0d" }
+
+# The shipped program: no debug info or symbols (most of a debug build's 1.3 GB) and thin LTO,
+# which drops code no tab reaches. Speed stays at opt-level 3 for decoding and painting.
+[profile.release]
+strip = true
+debug = false
+lto = "thin"
+
+[dev-dependencies]
+# FilmCraft's own tests of file_filters.rs.
+glob = "0.3"

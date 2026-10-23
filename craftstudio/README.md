@@ -6,8 +6,9 @@ points and an always-visible switch: **Home · Library · Photo · Vector · Vid
 its work when you switch tabs.
 
 Each tab is the full upstream app (its own `ui-egui` crate), so every tool, panel and command is
-there. LightCraft's and VectorCraft's platform hooks (file dialogs, clipboard, printing, settings,
-libraries) are their own modules, compiled as they are or copied unchanged.
+there. Each app's platform hooks (file dialogs, clipboard, printing, settings, libraries, crash
+recovery and auto-save, FilmCraft's sound, hardware decoders and GPU export) are its own modules,
+compiled as they are or copied unchanged.
 
 Where the apps meet:
 
@@ -25,9 +26,10 @@ Expects the upstream repos next to this folder:
     git clone https://github.com/storytold/photocraft ../photocraft
     git clone https://github.com/storytold/vectorcraft ../vectorcraft
     git clone https://github.com/storytold/filmcraft ../filmcraft
-    cargo run
+    cargo build --release      # target/release/craftstudio, about 250 MB, one file
 
-Linux only for now (VectorCraft's macOS and Windows hooks aren't wired in). Format with
+Linux only for now (the macOS and Windows hooks aren't wired in); FilmCraft's sound needs ALSA
+(`libasound2-dev` to build). Format with
 `rustfmt` on `src/*.rs`, not `cargo fmt`, which would follow the `#[path]` modules into the
 upstream repos.
 

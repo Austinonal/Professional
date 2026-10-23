@@ -7,9 +7,46 @@
 //! each other (LightCraft's Edit in PhotoCraft, VectorCraft's Edit Original), it lands in the
 //! Photo tab of the same window.
 
+mod film;
 mod light;
-mod photo_services;
 mod vector;
+
+// PhotoCraft's platform modules (file dialogs, open/save, clipboard, crash recovery, settings),
+// compiled as they are. Declared by name inside a module pointing at PhotoCraft's `src`, so their
+// own `mod tests;` files resolve, and re-exported at the root for their `crate::…` paths.
+#[path = "../../photocraft/apps/photocraft/src"]
+mod pc {
+    pub mod app_dirs;
+    pub mod appearance;
+    // Partly used: the rest serves PhotoCraft's own launcher.
+    #[allow(dead_code)]
+    pub mod crash_guard;
+    pub mod file_dialog_probe;
+    #[allow(dead_code)]
+    pub mod linux_libs;
+    pub mod photoshop_settings;
+    pub mod portal_save;
+    #[allow(dead_code)]
+    pub mod services;
+}
+use pc::{
+    app_dirs, appearance, crash_guard, file_dialog_probe, linux_libs, photoshop_settings,
+    portal_save, services,
+};
+
+// What PhotoCraft's main.rs gives those modules' tests.
+#[cfg(test)]
+mod gpu_startup {
+    pub const MARKER_FILE: &str = "gpu-starting.json";
+}
+#[cfg(test)]
+pub(crate) static CHILD_SPAWNS: std::sync::RwLock<()> = std::sync::RwLock::new(());
+#[cfg(test)]
+pub(crate) fn no_child_spawns() -> std::sync::RwLockWriteGuard<'static, ()> {
+    CHILD_SPAWNS
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
 
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
@@ -74,17 +111,17 @@ const PHOTO_EXTS: &[&str] = &[
 
 impl Studio {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut photo =
-            PhotocraftApp::new(photocraft_engine::Session::new(), photo_services::native());
+        let mut photo_services = services::native(None);
+        photo_services.preset_store =
+            services::presets_dir().map(photocraft_engine::preset_store::open_dir_async);
+        #[cfg(target_os = "linux")]
+        file_dialog_probe::start();
+        let mut photo = PhotocraftApp::new(photocraft_engine::Session::new(), photo_services);
         photo.background_jobs = true;
         if let Some(rs) = cc.wgpu_render_state.clone() {
             photo.set_wgpu(rs);
         }
-        let mut video = FilmcraftApp::new(filmcraft_engine::Session::default());
-        if let Some(rs) = cc.wgpu_render_state.clone() {
-            video.set_wgpu(rs);
-        }
-        video_hooks(&mut video);
+        let video = film::new(cc);
         let (tx, to_photo): (Sender<String>, _) = std::sync::mpsc::channel();
         let light = light::Light::new(cc, tx.clone());
         let vector = vector::new(cc, tx);
@@ -454,63 +491,6 @@ fn card(
     clicked
 }
 
-/// FilmCraft's file dialogs (the same rfd calls its own app makes).
-fn video_hooks(app: &mut FilmcraftApp) {
-    let save = |filter: &str, exts: &[&str], name: &str| {
-        rfd::FileDialog::new()
-            .add_filter(filter, exts)
-            .set_file_name(name)
-            .save_file()
-    };
-    let s = |p: PathBuf| p.to_string_lossy().into_owned();
-    app.hooks.pick_files = Some(Box::new(move |exts: &[&str]| {
-        rfd::FileDialog::new()
-            .add_filter("Media", exts)
-            .pick_files()
-            .unwrap_or_default()
-            .into_iter()
-            .map(s)
-            .collect()
-    }));
-    app.hooks.pick_file_for_relink = Some(Box::new(move |exts: &[&str], _| {
-        rfd::FileDialog::new()
-            .add_filter("Media", exts)
-            .pick_file()
-            .map(s)
-    }));
-    app.hooks.pick_save = Some(Box::new(move |name: &str| {
-        save("FilmCraft Project", &["fcproj"], name).map(s)
-    }));
-    app.hooks.pick_save_as = Some(Box::new(move |filter: &str, exts: &[&str], name: &str| {
-        let path = std::path::Path::new(name);
-        let file = path
-            .file_name()
-            .map_or(name.into(), |n| n.to_string_lossy().into_owned());
-        save(filter, exts, &file).map(s)
-    }));
-    app.hooks.pick_open_project = Some(Box::new(move || {
-        rfd::FileDialog::new()
-            .add_filter("FilmCraft Project", &["fcproj"])
-            .pick_file()
-            .map(s)
-    }));
-    app.hooks.pick_open_file = Some(Box::new(move |filter: &str, exts: &[&str]| {
-        rfd::FileDialog::new()
-            .add_filter(filter, exts)
-            .pick_file()
-            .map(s)
-    }));
-    app.hooks.pick_folder = Some(Box::new(move || {
-        rfd::FileDialog::new().pick_folder().map(s)
-    }));
-    app.hooks.pick_folder_at = Some(Box::new(move |dir: &str| {
-        rfd::FileDialog::new()
-            .set_directory(dir)
-            .pick_folder()
-            .map(s)
-    }));
-}
-
 impl eframe::App for Studio {
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
         match self.mode {
@@ -628,6 +608,7 @@ impl eframe::App for Studio {
 
 fn main() -> eframe::Result {
     env_logger_lite();
+    film::start();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("CraftStudio")
