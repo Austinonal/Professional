@@ -191,6 +191,9 @@ impl Studio {
     }
 
     fn switch(&mut self, ctx: &egui::Context, mode: Mode) {
+        // A hidden editor's logic doesn't run: playback there would go on with nobody watching.
+        self.video.playback.playing = false;
+        self.motion.playback.playing = false;
         self.mode = mode;
         self.quit_anyway = false;
         if mode == Mode::Home || mode == self.styled_for {
@@ -393,7 +396,8 @@ impl Studio {
                             VIDEO_ACCENT,
                         ),
                     ];
-                    for (mode, label, tip, color) in tabs {
+                    for (n, (mode, label, tip, color)) in tabs.into_iter().enumerate() {
+                        let tip = format!("{tip}  (Ctrl+Alt+{})", n + 1);
                         let on = self.mode == mode;
                         let text = egui::RichText::new(label).size(14.0);
                         let button = egui::Button::new(if on {
@@ -435,6 +439,7 @@ impl Studio {
                 ui.heading(egui::RichText::new("What do you want to make?").size(26.0));
                 ui.add_space(4.0);
                 ui.weak("Every app stays open side by side; the switch at the top always takes you back.");
+                ui.weak("Tip: drop any file here to open it in the right app. Ctrl+Alt+1…7 switch tabs.");
                 ui.add_space(28.0);
             });
             let card_w = 320.0_f32.min((ui.available_width() - 80.0) / 3.0).max(220.0);
@@ -583,6 +588,16 @@ impl eframe::App for Studio {
     }
 
     fn logic(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        // Ctrl+Alt+1…7 switch tabs, before an editor sees the keys.
+        let keys = [egui::Key::Num1, egui::Key::Num2, egui::Key::Num3, egui::Key::Num4, egui::Key::Num5, egui::Key::Num6, egui::Key::Num7];
+        let tabs = std::iter::once(Mode::Home).chain(Mode::EDITORS);
+        if let Some(m) = tabs.zip(keys).find_map(|(m, k)| ctx.input_mut(|i| i.consume_key(egui::Modifiers::CTRL | egui::Modifiers::ALT, k)).then_some(m)) {
+            self.switch(ctx, m);
+        }
+        // Files dropped on Home open in the tab that edits them (the editors take their own drops).
+        if self.mode == Mode::Home {
+            self.launch.extend(ctx.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).filter(|p| !p.as_os_str().is_empty()).collect::<Vec<_>>()));
+        }
         if !self.launch.is_empty() {
             self.open_launch_files(ctx);
         }
